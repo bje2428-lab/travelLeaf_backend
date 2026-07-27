@@ -1,0 +1,205 @@
+-----------------------------------------------------------
+-- SAFE DROP (존재할 때만 삭제)
+-----------------------------------------------------------
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TRIGGER TRG_SCHEDULE_BIU';
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLCODE != -4080 THEN RAISE; END IF; -- trigger does not exist
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP SEQUENCE SCHEDULE_SEQ';
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLCODE != -2289 THEN RAISE; END IF; -- sequence does not exist
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TABLE SCHEDULE CASCADE CONSTRAINTS';
+EXCEPTION
+  WHEN OTHERS THEN
+    IF SQLCODE != -942 THEN RAISE; END IF; -- table does not exist
+END;
+/
+
+-----------------------------------------------------------
+-- CREATE TABLE
+-----------------------------------------------------------
+CREATE TABLE SCHEDULE (
+    SCHEDULE_ID        NUMBER(20)    NOT NULL,   -- 일정 ID(PK)
+    USER_NO            NUMBER(20)    NOT NULL,   -- 사용자 ID(FK)
+
+    REGION_ID          NUMBER(20),               -- 여행 지역
+    CITY_ID            NUMBER(20),               -- 여행 도시
+
+    START_REGION_ID    NUMBER(20),               -- 출발 지역
+    START_CITY_ID      NUMBER(20),               -- 출발 도시
+    END_REGION_ID      NUMBER(20),               -- 도착 지역
+    END_CITY_ID        NUMBER(20),               -- 도착 도시
+
+    SCHEDULE_CODE      VARCHAR2(50)  NOT NULL,   -- 일정 코드(항상 유지)
+    SCHEDULE_TITLE     VARCHAR2(200),            -- 일정 제목
+
+    START_DATE         DATE,                     -- 여행 시작일
+    END_DATE           DATE,                     -- 여행 종료일
+
+    START_TIME         VARCHAR2(5),              -- 여행 출발 시간 (예: 09:30)
+    END_TIME           VARCHAR2(5),              -- 여행 도착 시간 (예: 18:10)
+
+    PEOPLE_COUNT       NUMBER,                   -- 인원 수
+    BUDGET             NUMBER,                   -- 예산
+
+    HASHTAGS           VARCHAR2(500),            -- 해시태그
+    AI_KEYWORDS        VARCHAR2(500),            -- AI 키워드
+
+    THUMBNAIL_IMG      VARCHAR2(300),            -- 썸네일 이미지
+    MEMO               VARCHAR2(1000),           -- 메모
+
+    IS_PUBLIC          CHAR(1) DEFAULT 'N' NOT NULL, -- 공개 여부(Y/N)
+
+    -- ✅ COURSE_TYPE 삭제함
+    REQUEST_DIFFICULTY VARCHAR2(10),             -- 난이도(초급/중급/고급)
+    WITH_TYPE          VARCHAR2(50),             -- 동반자 유형
+
+    SHARE_CODE         VARCHAR2(32),                  -- 공유 코드/QR (공유 시에만)
+    SHARE_ENABLED      CHAR(1) DEFAULT 'N' NOT NULL,  -- 공유 여부(Y/N)
+    SHARE_SCOPE        VARCHAR2(10) DEFAULT 'PRIVATE' NOT NULL, -- PRIVATE/PUBLIC/LINK
+    SHARE_EXPIRED_AT   DATE,                          -- 공유 만료일(선택)
+
+    CREATED_AT         DATE DEFAULT SYSDATE NOT NULL, -- 생성일
+    UPDATED_AT         DATE DEFAULT SYSDATE NOT NULL, -- 수정일(트리거로 자동 갱신)
+
+    PRIMARY KEY (SCHEDULE_ID),
+
+    CONSTRAINT UQ_SCHEDULE_CODE UNIQUE (SCHEDULE_CODE),
+    CONSTRAINT UQ_SCHEDULE_SHARE_CODE UNIQUE (SHARE_CODE),
+
+    FOREIGN KEY (USER_NO)         REFERENCES USER_TB(USER_NO),
+    FOREIGN KEY (REGION_ID)       REFERENCES REGION(REGION_ID),
+    FOREIGN KEY (CITY_ID)         REFERENCES CITY(CITY_ID),
+    FOREIGN KEY (START_REGION_ID) REFERENCES REGION(REGION_ID),
+    FOREIGN KEY (START_CITY_ID)   REFERENCES CITY(CITY_ID),
+    FOREIGN KEY (END_REGION_ID)   REFERENCES REGION(REGION_ID),
+    FOREIGN KEY (END_CITY_ID)     REFERENCES CITY(CITY_ID),
+
+    CONSTRAINT CK_SCHEDULE_IS_PUBLIC
+        CHECK (IS_PUBLIC IN ('Y','N')),
+
+    CONSTRAINT CK_SCHEDULE_SHARE_ENABLED
+        CHECK (SHARE_ENABLED IN ('Y','N')),
+
+    CONSTRAINT CK_SCHEDULE_SHARE_SCOPE
+        CHECK (SHARE_SCOPE IN ('PRIVATE','PUBLIC','LINK')),
+
+    CONSTRAINT CK_SCHEDULE_START_TIME_FMT
+        CHECK (
+          START_TIME IS NULL OR
+          REGEXP_LIKE(START_TIME, '^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$')
+        ),
+
+    CONSTRAINT CK_SCHEDULE_END_TIME_FMT
+        CHECK (
+          END_TIME IS NULL OR
+          REGEXP_LIKE(END_TIME, '^(0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$')
+        ),
+
+    CONSTRAINT CK_SCHEDULE_DATE_ORDER
+        CHECK (END_DATE IS NULL OR START_DATE IS NULL OR END_DATE >= START_DATE),
+
+    CONSTRAINT CK_SCHEDULE_SHARE_RULE
+        CHECK (
+          (SHARE_ENABLED = 'N'
+            AND SHARE_CODE IS NULL
+            AND SHARE_EXPIRED_AT IS NULL
+            AND SHARE_SCOPE = 'PRIVATE')
+          OR
+          (SHARE_ENABLED = 'Y'
+            AND SHARE_CODE IS NOT NULL
+            AND SHARE_SCOPE IN ('PRIVATE','PUBLIC','LINK'))
+        )
+);
+
+-----------------------------------------------------------
+-- COMMENT
+-----------------------------------------------------------
+COMMENT ON TABLE SCHEDULE IS '여행 일정 기본 정보';
+
+COMMENT ON COLUMN SCHEDULE.SCHEDULE_ID IS '여행 일정 고유 ID';
+COMMENT ON COLUMN SCHEDULE.USER_NO IS '회원 ID';
+
+COMMENT ON COLUMN SCHEDULE.REGION_ID IS '여행 지역 ID';
+COMMENT ON COLUMN SCHEDULE.CITY_ID IS '여행 도시 ID';
+
+COMMENT ON COLUMN SCHEDULE.START_REGION_ID IS '출발 지역 ID';
+COMMENT ON COLUMN SCHEDULE.START_CITY_ID IS '출발 도시 ID';
+COMMENT ON COLUMN SCHEDULE.END_REGION_ID IS '도착 지역 ID';
+COMMENT ON COLUMN SCHEDULE.END_CITY_ID IS '도착 도시 ID';
+
+COMMENT ON COLUMN SCHEDULE.SCHEDULE_CODE IS '일정 코드(공유코드와 별개, 일정 고유 식별용)';
+COMMENT ON COLUMN SCHEDULE.SCHEDULE_TITLE IS '일정 제목';
+
+COMMENT ON COLUMN SCHEDULE.START_DATE IS '여행 시작일';
+COMMENT ON COLUMN SCHEDULE.END_DATE IS '여행 종료일';
+COMMENT ON COLUMN SCHEDULE.START_TIME IS '여행 출발 시간(HH:MI)';
+COMMENT ON COLUMN SCHEDULE.END_TIME IS '여행 도착 시간(HH:MI)';
+
+COMMENT ON COLUMN SCHEDULE.PEOPLE_COUNT IS '인원 수';
+COMMENT ON COLUMN SCHEDULE.BUDGET IS '예산';
+
+COMMENT ON COLUMN SCHEDULE.HASHTAGS IS '해시태그';
+COMMENT ON COLUMN SCHEDULE.AI_KEYWORDS IS 'AI 키워드';
+
+COMMENT ON COLUMN SCHEDULE.THUMBNAIL_IMG IS '썸네일 이미지';
+COMMENT ON COLUMN SCHEDULE.MEMO IS '메모';
+COMMENT ON COLUMN SCHEDULE.IS_PUBLIC IS '공개 여부(Y/N)';
+
+COMMENT ON COLUMN SCHEDULE.REQUEST_DIFFICULTY IS '난이도(초급/중급/고급)';
+COMMENT ON COLUMN SCHEDULE.WITH_TYPE IS '동반자 유형';
+
+COMMENT ON COLUMN SCHEDULE.SHARE_CODE IS '공유 코드/QR(공유 시에만 발급)';
+COMMENT ON COLUMN SCHEDULE.SHARE_ENABLED IS '공유 활성화 여부(Y/N)';
+COMMENT ON COLUMN SCHEDULE.SHARE_SCOPE IS '공개 범위(PRIVATE/PUBLIC/LINK)';
+COMMENT ON COLUMN SCHEDULE.SHARE_EXPIRED_AT IS '공유 만료일(선택)';
+
+COMMENT ON COLUMN SCHEDULE.CREATED_AT IS '생성일';
+COMMENT ON COLUMN SCHEDULE.UPDATED_AT IS '수정일';
+
+-----------------------------------------------------------
+-- SEQUENCE
+-----------------------------------------------------------
+CREATE SEQUENCE SCHEDULE_SEQ
+  START WITH 1
+  INCREMENT BY 1
+  MAXVALUE 999999999999
+  NOCACHE
+  NOCYCLE;
+
+-----------------------------------------------------------
+-- TRIGGER
+-----------------------------------------------------------
+CREATE OR REPLACE TRIGGER TRG_SCHEDULE_BIU
+BEFORE INSERT OR UPDATE ON SCHEDULE
+FOR EACH ROW
+BEGIN
+  IF INSERTING THEN
+    IF :NEW.SCHEDULE_ID IS NULL THEN
+      SELECT SCHEDULE_SEQ.NEXTVAL INTO :NEW.SCHEDULE_ID FROM DUAL;
+    END IF;
+
+    IF :NEW.CREATED_AT IS NULL THEN
+      :NEW.CREATED_AT := SYSDATE;
+    END IF;
+  END IF;
+
+  :NEW.UPDATED_AT := SYSDATE;
+
+  IF :NEW.SHARE_ENABLED = 'N' THEN
+    :NEW.SHARE_CODE       := NULL;
+    :NEW.SHARE_EXPIRED_AT := NULL;
+    :NEW.SHARE_SCOPE      := 'PRIVATE';
+  END IF;
+END;
+/

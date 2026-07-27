@@ -1,0 +1,9 @@
+package dev.jpa.ai;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
+
+public interface ScheduleAiCacheRepository extends JpaRepository<ScheduleAiCache, Long> {
+    Optional<ScheduleAiCache> findByScheduleIdAndKind(Long scheduleId, String kind);
+}

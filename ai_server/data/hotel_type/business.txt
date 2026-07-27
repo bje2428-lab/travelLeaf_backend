@@ -1,0 +1,14 @@
+Hotel type: Business hotel
+
+Policies and characteristics:
+- Check-in time is typically between 14:00 and 15:00.
+- Check-out time is usually between 10:00 and 11:00.
+- Breakfast may be included or offered as a simple paid option.
+- Parking availability varies; some locations may have limited space.
+- Bicycle storage is usually possible in outdoor areas or parking facilities.
+  Indoor storage is generally restricted.
+- Luggage storage is commonly available at the front desk.
+- Designed for short stays and business travelers.
+
+Notes:
+- Responses should be efficient, clear, and practical.

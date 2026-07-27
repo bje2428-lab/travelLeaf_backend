@@ -1,0 +1,14 @@
+Hotel type: Luxury / Premium hotel
+
+Policies and characteristics:
+- Check-in time is typically around 15:00.
+- Check-out time is usually around 11:00.
+- Breakfast is often included or available as a paid buffet.
+- Parking is generally available; it may be paid or valet service.
+- Bicycle storage is usually available in outdoor or designated areas.
+  Indoor bicycle storage inside guest rooms is generally not allowed.
+- Luggage storage before check-in or after check-out is commonly supported.
+- Staff service level is high, and concierge assistance may be available.
+
+Notes:
+- For policies not explicitly mentioned, assume premium-level service unless stated otherwise.

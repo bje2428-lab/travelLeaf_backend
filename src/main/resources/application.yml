@@ -1,0 +1,27 @@
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: kkjsh0831@gmail.com
+    password: "deka wdvz klju smqp"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: smtp.gmail.com
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
+
+  
+kakao:
+  rest:
+    api-key: {kakao_api_key}
+    
+
+
